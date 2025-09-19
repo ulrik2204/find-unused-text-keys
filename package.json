@@ -1,0 +1,27 @@
+{
+  "name": "find-unused-text-keys",
+  "version": "1.0.0",
+  "description": "Goes through your json text key-value file and your repo to find unused text keys.",
+  "repository": {
+    "type": "git",
+    "url": "yes"
+  },
+  "bin": {
+    "find-unused-text-keys": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "license": "ISC",
+  "author": "Ulrik Røsby",
+  "type": "commonjs",
+  "main": "index.js",
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2"
+  }
+}
