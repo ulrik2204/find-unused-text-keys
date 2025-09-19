@@ -7,13 +7,14 @@
  *   1) Reads a JSON file containing key:string -> value:string pairs (e.g., fallbackTexts.json)
  *   2) Recursively scans a folder of source files
  *   3) Reports which keys from the JSON are NOT used anywhere in the codebase
+ *   4) (Optional) Removes those unused keys from the JSON file if --remove is passed
  *
  * Usage:
- *   node find-unused-fallback-keys.ts <path/to/fallbackTexts.json> <path/to/folder> [--ext ".ts,.tsx,.js,.jsx"] [--ignore "node_modules,dist,.git"] [--case-sensitive=false]
+ *   ts-node find-unused-fallback-keys.ts <path/to/fallbackTexts.json> <path/to/folder> [--remove] [--ext ".ts,.tsx,.js,.jsx"] [--ignore "node_modules,dist,.git"] [--case-sensitive=false]
  *
  * Examples:
  *   ts-node find-unused-fallback-keys.ts ./fallbackTexts.json ./src
- *   ts-node find-unused-fallback-keys.ts ./fallbackTexts.json ./apps/web --ext ".ts,.tsx,.js,.jsx,.md" --ignore "node_modules,dist,build,.next,.git" --case-sensitive=false
+ *   ts-node find-unused-fallback-keys.ts ./fallbackTexts.json ./apps/web --remove --ext ".ts,.tsx,.js,.jsx,.md" --ignore "node_modules,dist,build,.next,.git" --case-sensitive=false
  */
 
 import * as fs from "fs";
@@ -28,12 +29,13 @@ interface Options {
   ignoreDirs: string[]; // dir names to ignore
   caseSensitive: boolean;
   maxFileBytes: number; // safety cap
+  remove: boolean;
 }
 
 function parseArgs(argv: string[]): Options {
   if (argv.length < 4) {
     console.error(
-      "Usage: ts-node find-unused-fallback-keys.ts <path/to/fallbackTexts.json> <path/to/folder> [--ext \".ts,.tsx,.js,.jsx\"] [--ignore \"node_modules,dist,.git\"] [--case-sensitive=false]"
+      "Usage: ts-node find-unused-fallback-keys.ts <path/to/fallbackTexts.json> <path/to/folder> [--remove] [--ext \".ts,.tsx,.js,.jsx\"] [--ignore \"node_modules,dist,.git\"] [--case-sensitive=false]"
     );
     process.exit(1);
   }
@@ -46,12 +48,14 @@ function parseArgs(argv: string[]): Options {
     ignoreDirs: ["node_modules", ".git", "dist", "build", ".next", "out"],
     caseSensitive: true,
     maxFileBytes: 2 * 1024 * 1024, // 2MB
+    remove: false,
   } satisfies Omit<Options, "jsonPath" | "rootDir">;
 
   let exts = defaults.exts;
   let ignoreDirs = defaults.ignoreDirs;
   let caseSensitive: boolean = defaults.caseSensitive;
   let maxFileBytes = defaults.maxFileBytes;
+  let remove = defaults.remove;
 
   for (let i = 4; i < argv.length; i++) {
     const [flag, rawValue] = argv[i].split("=");
@@ -72,12 +76,15 @@ function parseArgs(argv: string[]): Options {
       case "--max-bytes":
         if (value) maxFileBytes = Number(value) || maxFileBytes;
         break;
+      case "--remove":
+        remove = true;
+        break;
       default:
         console.warn(`Unknown flag: ${flag}`);
     }
   }
 
-  return { jsonPath, rootDir, exts, ignoreDirs, caseSensitive, maxFileBytes };
+  return { jsonPath, rootDir, exts, ignoreDirs, caseSensitive, maxFileBytes, remove };
 }
 
 // -------------------- FILE UTILS --------------------
@@ -132,7 +139,6 @@ async function main() {
   let raw: string;
   try {
     raw = await fsp.readFile(opts.jsonPath, "utf8");
-    console.log(`Loaded JSON: ${Object.keys(JSON.parse(raw)).join("\n")}`);
   } catch (err) {
     console.error(`Failed to read JSON: ${opts.jsonPath}`);
     console.error(err);
@@ -222,6 +228,20 @@ async function main() {
     console.log(`\nUnused keys (${unused.length}):`);
     for (const k of unused) console.log("-", k);
 
+    if (opts.remove) {
+      console.log("\n--remove flag detected. Removing unused keys from JSON...");
+      for (const k of unused) {
+        delete (obj as any)[k];
+      }
+      try {
+        await fsp.writeFile(opts.jsonPath, JSON.stringify(obj, null, 2) + "\n", "utf8");
+        console.log(`Removed ${unused.length} keys and updated ${opts.jsonPath}`);
+      } catch (err) {
+        console.error("Failed to write updated JSON:", err);
+        process.exit(1);
+      }
+    }
+
     // Optional: Exit with code 2 when unused keys exist (useful for CI)
     // process.exit(2);
   }
@@ -231,3 +251,4 @@ main().catch((err) => {
   console.error("Unexpected error:", err);
   process.exit(1);
 });
+

@@ -1,6 +1,6 @@
 {
   "name": "find-unused-text-keys",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Goes through your json text key-value file and your repo to find unused text keys.",
   "repository": {
     "type": "git",
