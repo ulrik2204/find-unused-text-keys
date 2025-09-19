@@ -55,7 +55,7 @@ function parseArgs(argv: string[]): Options {
   let ignoreDirs = defaults.ignoreDirs;
   let caseSensitive: boolean = defaults.caseSensitive;
   let maxFileBytes = defaults.maxFileBytes;
-  let remove = defaults.remove;
+  let remove: boolean = defaults.remove;
 
   for (let i = 4; i < argv.length; i++) {
     const [flag, rawValue] = argv[i].split("=");
